@@ -306,7 +306,7 @@ fn main() -> Result<(), anyhow::Error> {
                 % bundle.head_payload.uncompressed_block_granularity as u64) as usize
         };
         let mut data_output = vec![0u8; size];
-        dbg!(unsafe { oozle::decompress(block, &mut data_output) }).unwrap();
+        unsafe { oozle::decompress(block, &mut data_output) }.unwrap();
         uncompressed.extend_from_slice(&data_output)
     }
     let length = uncompressed.len();
