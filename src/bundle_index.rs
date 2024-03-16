@@ -8,6 +8,8 @@ pub struct BundleIndex {
     pub bundles: Vec<BundleRecord>,
     pub files_count: u32,
     pub files: Vec<FileRecord>,
+    pub path_rep_count: u32,
+    pub path_rep: Vec<PathRep>,
 }
 
 impl BundleIndex {
@@ -24,11 +26,19 @@ impl BundleIndex {
             files.push(FileRecord::parse(reader)?);
         }
 
+        let path_rep_count = reader.read_u32::<LittleEndian>()?;
+        let mut path_rep = Vec::with_capacity(path_rep_count as usize);
+        for _ in 0..path_rep_count {
+            path_rep.push(PathRep::parse(reader)?);
+        }
+
         Ok(Self {
             bundle_count,
             bundles,
             files_count,
             files,
+            path_rep_count,
+            path_rep,
         })
     }
 }
@@ -75,6 +85,29 @@ impl FileRecord {
             bundle_index,
             file_offset,
             file_size,
+        })
+    }
+}
+
+#[derive(Debug)]
+pub struct PathRep {
+    pub hash: u64,
+    pub payload_offset: u32,
+    pub payload_size: u32,
+    pub payload_recursive_size: u32,
+}
+
+impl PathRep {
+    pub fn parse(reader: &mut impl io::Read) -> Result<Self, io::Error> {
+        let hash = reader.read_u64::<LittleEndian>()?;
+        let payload_offset = reader.read_u32::<LittleEndian>()?;
+        let payload_size = reader.read_u32::<LittleEndian>()?;
+        let payload_recursive_size = reader.read_u32::<LittleEndian>()?;
+        Ok(Self {
+            hash,
+            payload_offset,
+            payload_size,
+            payload_recursive_size,
         })
     }
 }

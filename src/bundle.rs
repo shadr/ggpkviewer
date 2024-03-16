@@ -23,6 +23,31 @@ impl Bundle {
             head_payload,
         })
     }
+
+    pub fn data(&self, reader: &mut impl io::Read) -> Result<Vec<u8>, io::Error> {
+        let mut data_input = vec![0u8; self.head_payload.total_payload_size as usize];
+        reader.read_exact(&mut data_input)?;
+        let mut data = Vec::new();
+        let mut offset = 0;
+        for block_size in &self.head_payload.block_sizes {
+            data.push(&data_input[offset..offset + *block_size as usize]);
+            offset += *block_size as usize;
+        }
+        let mut uncompressed = Vec::with_capacity(self.uncompressed_size as usize);
+        for (index, block) in data.iter().enumerate() {
+            let size = if index != data.len() - 1 {
+                self.head_payload.uncompressed_block_granularity as usize
+            } else {
+                (self.head_payload.uncompressed_size
+                    % self.head_payload.uncompressed_block_granularity as u64)
+                    as usize
+            };
+            let mut data_output = vec![0u8; size];
+            unsafe { oozle::decompress(block, &mut data_output) }.unwrap();
+            uncompressed.extend_from_slice(&data_output)
+        }
+        Ok(uncompressed)
+    }
 }
 
 #[derive(Debug, Default)]
