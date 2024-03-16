@@ -1,17 +1,19 @@
 pub mod bundle;
 pub mod bundle_index;
 pub mod dat;
+pub mod dat_schema;
 pub mod ggpk;
 pub mod utils;
 
 use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt};
 use dat::DatFile;
+use dat_schema::SchemaFile;
 use ggpk::{Entry, EntryData};
 use std::{
     collections::HashMap,
     fs::File,
-    io::{self, BufRead, Cursor, Read, Seek, SeekFrom},
+    io::{self, BufRead, Cursor, Read, SeekFrom},
     path::{Path, PathBuf},
 };
 
