@@ -1,4 +1,6 @@
-use std::ops::Range;
+use std::{io::Cursor, ops::Range};
+
+use byteorder::{LittleEndian, ReadBytesExt};
 
 #[derive(Debug)]
 pub struct DatFile {
@@ -40,9 +42,42 @@ impl DatFile {
         &self.data[self.variable_data_range.clone()]
     }
 
-    pub fn nth_row(&self, n: usize) -> &[u8] {
+    pub fn nth_row<'a>(&'a self, n: usize) -> DatRow<'a> {
         let start = n * self.row_length;
         let end = start + self.row_length;
-        &self.fixed_data()[start..end]
+        DatRow {
+            cursor: Cursor::new(&self.fixed_data()[start..end]),
+        }
+    }
+
+    pub fn read_variable_string(&self, offset: usize) -> String {
+        let data = &self.variable_data()[offset..];
+        let windows = data.windows(4);
+        let mut length = 0;
+        for (index, wind) in windows.enumerate() {
+            length = index;
+            if wind == &[0, 0, 0, 0] && length % 2 == 0 {
+                break;
+            }
+        }
+        let sliceu16 = unsafe { data[..length].align_to::<u16>().1 };
+        String::from_utf16_lossy(sliceu16).to_string()
+    }
+}
+
+#[derive(Debug)]
+pub struct DatRow<'a> {
+    cursor: Cursor<&'a [u8]>,
+}
+
+impl<'a> AsRef<[u8]> for DatRow<'a> {
+    fn as_ref(&self) -> &[u8] {
+        self.cursor.get_ref()
+    }
+}
+
+impl<'a> DatRow<'a> {
+    pub fn read_u32(&mut self) -> u32 {
+        self.cursor.read_u32::<LittleEndian>().unwrap()
     }
 }

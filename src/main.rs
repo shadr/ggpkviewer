@@ -201,37 +201,14 @@ fn main() -> Result<(), anyhow::Error> {
     let mods = fs.get_file("data/mods.dat64")?.unwrap();
     let mods_dat = DatFile::new(mods);
 
-    let mut variable_cursor = Cursor::new(mods_dat.variable_data());
     for i in 0..20 {
-        let row = mods_dat.nth_row(i);
+        let mut row = mods_dat.nth_row(i);
 
-        let mut c = Cursor::new(row);
-        let string_offset = c.read_u32::<LittleEndian>()?;
-        variable_cursor.seek(SeekFrom::Start(string_offset as u64))?;
-        let mut buf = Vec::new();
-        for wind in mods_dat.variable_data()[string_offset as usize..].windows(4) {
-            if wind == &[0, 0, 0, 0] && buf.len() % 2 == 0 {
-                break;
-            }
-            buf.push(wind[0]);
-        }
-        let vecu16: Vec<u16> = buf
-            .chunks_exact(2)
-            .map(|a| u16::from_ne_bytes([a[0], a[1]]))
-            .collect();
-        let sliceu16 = vecu16.as_slice();
-        let string = String::from_utf16_lossy(sliceu16)
-            .trim_end_matches("\0")
-            .to_string();
-        dbg!(string);
+        let string_offset = row.read_u32();
+
+        dbg!(mods_dat.read_variable_string(string_offset as usize));
     }
     Ok(())
-}
-
-fn find_sequence(bytes: &[u8], find: &[u8], offset: usize) -> Option<usize> {
-    bytes[offset..]
-        .windows(find.len())
-        .position(|wind| wind == find)
 }
 
 fn make_paths(reader: &mut Cursor<&[u8]>) -> Result<Vec<String>, io::Error> {
