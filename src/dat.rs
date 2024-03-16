@@ -7,7 +7,7 @@ use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::dat_schema::{ColumnType, TableColumn};
 
-type ReadFn = fn(&mut Cursor<&[u8]>, &mut Cursor<&[u8]>) -> DatValue;
+type ReadFn = fn(&mut Cursor<&[u8]>, &[u8]) -> DatValue;
 
 #[derive(Debug)]
 pub struct DatFile {
@@ -54,7 +54,7 @@ impl DatFile {
         let end = start + self.row_length;
         DatRow {
             fixed_cursor: Cursor::new(&self.fixed_data()[start..end]),
-            variable_cursor: Cursor::new(self.variable_data()),
+            variable_data: self.variable_data(),
         }
     }
 }
@@ -76,7 +76,7 @@ pub fn read_variable_string(data: &[u8], offset: usize) -> String {
 #[derive(Debug)]
 pub struct DatRow<'a> {
     fixed_cursor: Cursor<&'a [u8]>,
-    variable_cursor: Cursor<&'a [u8]>,
+    variable_data: &'a [u8],
 }
 
 impl<'a> AsRef<[u8]> for DatRow<'a> {
@@ -126,7 +126,7 @@ impl<'a> DatRow<'a> {
 
     pub fn read_scalar(&mut self, column: &TableColumn) -> DatValue {
         let f = Self::get_fn(column);
-        f(&mut self.fixed_cursor, &mut self.variable_cursor)
+        f(&mut self.fixed_cursor, &mut self.variable_data)
     }
 
     pub fn read_array(&mut self, column: &TableColumn) -> DatValue {
@@ -134,45 +134,45 @@ impl<'a> DatRow<'a> {
         let array_length = self.fixed_cursor.read_u64::<LittleEndian>().unwrap();
         let mut arr = Vec::new();
         let variable_offset = self.fixed_cursor.read_u64::<LittleEndian>().unwrap();
-        let mut clone = self.variable_cursor.clone();
-        self.variable_cursor
+        let mut variable_reader = Cursor::new(self.variable_data);
+        variable_reader
             .seek(SeekFrom::Start(variable_offset))
             .unwrap();
         for _ in 0..array_length {
-            arr.push(f(&mut self.variable_cursor, &mut clone))
+            arr.push(f(&mut variable_reader, self.variable_data))
         }
         DatValue::Array(arr)
     }
 }
 
-fn read_string(fixed_reader: &mut Cursor<&[u8]>, variable_reader: &mut Cursor<&[u8]>) -> DatValue {
+fn read_string(fixed_reader: &mut Cursor<&[u8]>, variable_data: &[u8]) -> DatValue {
     let string_offset = fixed_reader.read_u64::<LittleEndian>().unwrap();
-    let string = read_variable_string(variable_reader.get_ref(), string_offset as usize);
+    let string = read_variable_string(variable_data, string_offset as usize);
     DatValue::String(string)
 }
 
-fn read_i32(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue {
+fn read_i32(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
     let value = fixed_reader.read_i32::<LittleEndian>().unwrap();
     DatValue::I32(value)
 }
 
-fn read_foreign_key(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue {
+fn read_foreign_key(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
     let rid = wrap_usize(fixed_reader.read_u64::<LittleEndian>().unwrap() as usize);
     let unknown = wrap_usize(fixed_reader.read_u64::<LittleEndian>().unwrap() as usize);
     DatValue::ForeignRow { rid, unknown }
 }
 
-fn read_enum_row(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue {
+fn read_enum_row(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
     let row = fixed_reader.read_i32::<LittleEndian>().unwrap();
     DatValue::EnumRow(row as usize)
 }
 
-fn read_bool(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue {
+fn read_bool(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
     let value = fixed_reader.read_u8().unwrap();
     DatValue::Bool(value > 0)
 }
 
-fn read_key(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue {
+fn read_key(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
     let row = wrap_usize(fixed_reader.read_u64::<LittleEndian>().unwrap() as usize);
     DatValue::Row(row)
 }
