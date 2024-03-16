@@ -1,10 +1,12 @@
 pub mod bundle;
 pub mod bundle_index;
+pub mod dat;
 pub mod ggpk;
 pub mod utils;
 
 use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt};
+use dat::DatFile;
 use ggpk::{Entry, EntryData};
 use std::{
     collections::HashMap,
@@ -197,26 +199,17 @@ fn main() -> Result<(), anyhow::Error> {
         unreachable!()
     };
     let mods = fs.get_file("data/mods.dat64")?.unwrap();
-    let row_count = u32::from_le_bytes([mods[0], mods[1], mods[2], mods[3]]);
-    let boundary = mods
-        .windows(8)
-        .position(|wind| wind.iter().all(|b| *b == 0xBB))
-        .unwrap();
-    let row_length = (boundary as u32 - 4) / row_count;
+    let mods_dat = DatFile::new(mods);
 
-    let fixed_data = &mods[4..boundary];
-    let variable_data = &mods[boundary..];
+    let mut variable_cursor = Cursor::new(mods_dat.variable_data());
+    for i in 0..20 {
+        let row = mods_dat.nth_row(i);
 
-    let mut fixed_cursor = Cursor::new(fixed_data);
-    let mut variable_cursor = Cursor::new(variable_data);
-
-    for _ in 0..20 {
-        let row_start = fixed_cursor.position();
-
-        let string_offset = fixed_cursor.read_u32::<LittleEndian>()?;
+        let mut c = Cursor::new(row);
+        let string_offset = c.read_u32::<LittleEndian>()?;
         variable_cursor.seek(SeekFrom::Start(string_offset as u64))?;
         let mut buf = Vec::new();
-        for wind in variable_data[string_offset as usize..].windows(4) {
+        for wind in mods_dat.variable_data()[string_offset as usize..].windows(4) {
             if wind == &[0, 0, 0, 0] && buf.len() % 2 == 0 {
                 break;
             }
@@ -231,11 +224,6 @@ fn main() -> Result<(), anyhow::Error> {
             .trim_end_matches("\0")
             .to_string();
         dbg!(string);
-
-        let row_end = fixed_cursor.position();
-        let row_consumed = row_end - row_start;
-        let row_left = row_length as u64 - row_consumed;
-        fixed_cursor.seek(SeekFrom::Current(row_left as i64))?;
     }
     Ok(())
 }
