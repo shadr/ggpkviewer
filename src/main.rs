@@ -27,39 +27,48 @@ struct Args {
 #[derive(Debug, clap::Subcommand)]
 pub enum Command {
     Get {
-        file: String,
+        file: PathBuf,
         #[arg(default_value = "output.csv")]
         output: PathBuf,
     },
     ListPaths,
 }
 
-fn get_file(fs: &mut PoeFS, path: &str, output: PathBuf) -> Result<(), anyhow::Error> {
-    let mods = fs.get_file("data/mods.dat64")?.unwrap();
-    let mods_dat = DatFile::new(mods);
+fn get_file(fs: &mut PoeFS, path: PathBuf, output: PathBuf) -> Result<(), anyhow::Error> {
+    let file_name = path
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .trim_end_matches(".dat64")
+        .trim_end_matches(".datl64");
+    let file_bytes = fs.get_file(path.to_str().unwrap())?.unwrap();
+    let file_dat = DatFile::new(file_bytes);
 
     let schema_content = std::fs::read_to_string("schema.min.json")?;
     let schema: SchemaFile = serde_json::from_str(&schema_content)?;
-    let mods_schema = schema.tables.iter().find(|t| t.name == "Mods").unwrap();
-    let mods_columns = &mods_schema.columns;
+    let file_schema = schema.tables.iter().find(|t| t.name == "Mods").unwrap();
+    let file_columns = &file_schema.columns;
 
-    let mut wtr = csv::Writer::from_path("output.csv")?;
+    let mut wtr = csv::Writer::from_path(output)?;
     let mut unknown_count = 0;
-    let headers = mods_columns.iter().map(|c| {
+    let headers = file_columns.iter().map(|c| {
         c.name.clone().unwrap_or_else(|| {
             let s = format!("Unknown{unknown_count}");
             unknown_count += 1;
             s
         })
     });
+
     wtr.write_record(headers)?;
-    for i in 0..mods_dat.row_count as usize {
-        let mut row = mods_dat.nth_row(i);
-        let values = row.read_with_schema(mods_columns);
+    for i in 0..file_dat.row_count as usize {
+        let mut row = file_dat.nth_row(i);
+        let values = row.read_with_schema(file_columns);
         let values = values.into_iter().map(|v| v.to_csv());
         wtr.write_record(values)?;
     }
     wtr.flush()?;
+
     Ok(())
 }
 
@@ -73,7 +82,7 @@ fn main() -> Result<(), anyhow::Error> {
         unreachable!()
     };
     match args.command {
-        Command::Get { file, output } => get_file(&mut fs, &file, output)?,
+        Command::Get { file, output } => get_file(&mut fs, file, output)?,
         Command::ListPaths => {
             for path in fs.get_paths() {
                 println!("{path}");
