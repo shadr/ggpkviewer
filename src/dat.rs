@@ -209,7 +209,7 @@ impl DatValue {
             Self::F32(f) => f.to_string(),
             Self::Array(a) => {
                 let a = a.into_iter().map(|v| v.to_csv()).collect::<Vec<_>>();
-                let joined = a.join(",");
+                let joined = a.join(";");
                 format!("[{joined}]")
             }
             Self::Row(r) => format!("{r:?}"),
