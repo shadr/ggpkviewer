@@ -27,7 +27,7 @@ fn main() -> Result<(), anyhow::Error> {
     let mut fs = if let Some(path) = args.ggpk {
         PoeFS::new(LocalSource::new(path)?)
     } else if args.online {
-        PoeFS::new(OnlineSource)
+        PoeFS::new(OnlineSource::new(None))
     } else {
         unreachable!()
     };
