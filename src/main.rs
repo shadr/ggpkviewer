@@ -47,7 +47,11 @@ fn get_file(fs: &mut PoeFS, path: PathBuf, output: PathBuf) -> Result<(), anyhow
 
     let schema_content = std::fs::read_to_string("schema.min.json")?;
     let schema: SchemaFile = serde_json::from_str(&schema_content)?;
-    let file_schema = schema.tables.iter().find(|t| t.name == "Mods").unwrap();
+    let file_schema = schema
+        .tables
+        .iter()
+        .find(|t| t.name.to_lowercase() == file_name)
+        .unwrap();
     let file_columns = &file_schema.columns;
 
     let mut wtr = csv::Writer::from_path(output)?;
