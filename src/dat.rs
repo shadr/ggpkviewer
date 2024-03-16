@@ -1,6 +1,11 @@
-use std::{io::Cursor, ops::Range};
+use std::{
+    io::{Cursor, Read, Seek, SeekFrom},
+    ops::Range,
+};
 
 use byteorder::{LittleEndian, ReadBytesExt};
+
+use crate::dat_schema::{ColumnType, TableColumn};
 
 #[derive(Debug)]
 pub struct DatFile {
@@ -46,38 +51,149 @@ impl DatFile {
         let start = n * self.row_length;
         let end = start + self.row_length;
         DatRow {
-            cursor: Cursor::new(&self.fixed_data()[start..end]),
+            fixed_cursor: Cursor::new(&self.fixed_data()[start..end]),
+            variable_cursor: Cursor::new(self.variable_data()),
         }
     }
+}
 
-    pub fn read_variable_string(&self, offset: usize) -> String {
-        let data = &self.variable_data()[offset..];
-        let windows = data.windows(4);
-        let mut length = 0;
-        for (index, wind) in windows.enumerate() {
-            length = index;
-            if wind == &[0, 0, 0, 0] && length % 2 == 0 {
-                break;
-            }
+pub fn read_variable_string(data: &[u8], offset: usize) -> String {
+    let data = &data[offset..];
+    let windows = data.windows(4);
+    let mut length = 0;
+    for (index, wind) in windows.enumerate() {
+        length = index;
+        if wind == &[0, 0, 0, 0] && length % 2 == 0 {
+            break;
         }
-        let sliceu16 = unsafe { data[..length].align_to::<u16>().1 };
-        String::from_utf16_lossy(sliceu16).to_string()
     }
+    let sliceu16 = unsafe { data[..length].align_to::<u16>().1 };
+    String::from_utf16_lossy(sliceu16).to_string()
 }
 
 #[derive(Debug)]
 pub struct DatRow<'a> {
-    cursor: Cursor<&'a [u8]>,
+    fixed_cursor: Cursor<&'a [u8]>,
+    variable_cursor: Cursor<&'a [u8]>,
 }
 
 impl<'a> AsRef<[u8]> for DatRow<'a> {
     fn as_ref(&self) -> &[u8] {
-        self.cursor.get_ref()
+        self.fixed_cursor.get_ref()
     }
 }
 
 impl<'a> DatRow<'a> {
     pub fn read_u32(&mut self) -> u32 {
-        self.cursor.read_u32::<LittleEndian>().unwrap()
+        self.fixed_cursor.read_u32::<LittleEndian>().unwrap()
     }
+
+    pub fn read_u64(&mut self) -> u64 {
+        self.fixed_cursor.read_u64::<LittleEndian>().unwrap()
+    }
+
+    pub fn read_i32(&mut self) -> i32 {
+        self.fixed_cursor.read_i32::<LittleEndian>().unwrap()
+    }
+
+    pub fn read_with_schema(&mut self, columns: &[TableColumn]) -> Vec<DatValue> {
+        let mut values = Vec::new();
+        for column in columns {
+            let value = if column.array {
+                self.read_array(column)
+            } else {
+                self.read_scalar(column)
+            };
+            values.push(value);
+        }
+        values
+    }
+
+    pub fn get_fn(column: &TableColumn) -> fn(&mut Cursor<&[u8]>, &mut Cursor<&[u8]>) -> DatValue {
+        match column.ttype {
+            ColumnType::Bool => read_bool,
+            ColumnType::String => read_string,
+            ColumnType::I32 => read_i32,
+            ColumnType::F32 => todo!(),
+            ColumnType::Array => todo!(),
+            ColumnType::Row => read_key,
+            ColumnType::ForeignRow => read_foreign_key,
+            ColumnType::EnumRow => read_enum_row,
+        }
+    }
+
+    pub fn read_scalar(&mut self, column: &TableColumn) -> DatValue {
+        let f = Self::get_fn(column);
+        f(&mut self.fixed_cursor, &mut self.variable_cursor)
+    }
+
+    pub fn read_array(&mut self, column: &TableColumn) -> DatValue {
+        let f = Self::get_fn(column);
+        let array_length = self.fixed_cursor.read_u64::<LittleEndian>().unwrap();
+        let mut arr = Vec::new();
+        let variable_offset = self.fixed_cursor.read_u64::<LittleEndian>().unwrap();
+        let mut clone = self.variable_cursor.clone();
+        self.variable_cursor
+            .seek(SeekFrom::Start(variable_offset as u64))
+            .unwrap();
+        for _ in 0..array_length {
+            arr.push(f(&mut self.variable_cursor, &mut clone))
+        }
+        DatValue::Array(arr)
+    }
+}
+
+fn read_string(fixed_reader: &mut Cursor<&[u8]>, variable_reader: &mut Cursor<&[u8]>) -> DatValue {
+    let string_offset = fixed_reader.read_u64::<LittleEndian>().unwrap();
+    let string = read_variable_string(variable_reader.get_ref(), string_offset as usize);
+    DatValue::String(string)
+}
+
+fn read_i32(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue {
+    let value = fixed_reader.read_i32::<LittleEndian>().unwrap();
+    DatValue::I32(value)
+}
+
+fn read_foreign_key(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue {
+    let rid = wrap_usize(fixed_reader.read_u64::<LittleEndian>().unwrap() as usize);
+    let unknown = wrap_usize(fixed_reader.read_u64::<LittleEndian>().unwrap() as usize);
+    DatValue::ForeignRow { rid, unknown }
+}
+
+fn read_enum_row(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue {
+    let row = fixed_reader.read_i32::<LittleEndian>().unwrap();
+    DatValue::EnumRow(row as usize)
+}
+
+fn read_bool(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue {
+    let value = fixed_reader.read_u8().unwrap();
+    DatValue::Bool(value > 0)
+}
+
+fn read_key(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue {
+    let row = wrap_usize(fixed_reader.read_u64::<LittleEndian>().unwrap() as usize);
+    DatValue::Row(row)
+}
+
+fn wrap_usize(value: usize) -> Option<usize> {
+    if value == 0xfefefefefefefefe {
+        None
+    } else {
+        Some(value)
+    }
+}
+
+#[derive(Debug)]
+pub enum DatValue {
+    Bool(bool),
+    String(String),
+    I32(i32),
+    F32(f32),
+    Array(Vec<DatValue>),
+    Row(Option<usize>),
+    ForeignRow {
+        rid: Option<usize>,
+        unknown: Option<usize>,
+    },
+    EnumRow(usize),
 }

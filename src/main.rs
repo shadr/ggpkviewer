@@ -203,12 +203,14 @@ fn main() -> Result<(), anyhow::Error> {
     let mods = fs.get_file("data/mods.dat64")?.unwrap();
     let mods_dat = DatFile::new(mods);
 
+    let schema_content = std::fs::read_to_string("schema.min.json")?;
+    let schema: SchemaFile = serde_json::from_str(&schema_content)?;
+    let mods_schema = schema.tables.iter().find(|t| t.name == "Mods").unwrap();
+    let mods_columns = &mods_schema.columns;
+
     for i in 0..20 {
         let mut row = mods_dat.nth_row(i);
-
-        let string_offset = row.read_u32();
-
-        dbg!(mods_dat.read_variable_string(string_offset as usize));
+        row.read_with_schema(&mods_columns);
     }
     Ok(())
 }
