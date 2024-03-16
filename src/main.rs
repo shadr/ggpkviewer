@@ -15,8 +15,10 @@ use crate::{bundle::Bundle, bundle_index::BundleIndex};
 
 #[derive(Debug, Parser)]
 struct Args {
-    #[arg(short, long)]
+    #[arg(short, long, group = "source")]
     ggpk: PathBuf,
+    #[arg(short, long, group = "source")]
+    online: bool,
 }
 
 #[derive(Debug, Clone)]
