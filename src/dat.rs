@@ -199,3 +199,24 @@ pub enum DatValue {
     },
     EnumRow(usize),
 }
+
+impl DatValue {
+    pub fn to_csv(self) -> String {
+        match self {
+            DatValue::Bool(b) => b.to_string(),
+            DatValue::String(s) => s,
+            DatValue::I32(i) => i.to_string(),
+            DatValue::F32(f) => f.to_string(),
+            DatValue::Array(a) => {
+                let a = a.into_iter().map(|v| v.to_csv()).collect::<Vec<_>>();
+                let joined = a.join(",");
+                format!("[{joined}]")
+            }
+            DatValue::Row(r) => format!("{r:?}"),
+            DatValue::ForeignRow { rid, .. } => {
+                format!("{rid:?}")
+            }
+            DatValue::EnumRow(r) => r.to_string(),
+        }
+    }
+}

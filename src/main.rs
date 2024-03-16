@@ -208,10 +208,23 @@ fn main() -> Result<(), anyhow::Error> {
     let mods_schema = schema.tables.iter().find(|t| t.name == "Mods").unwrap();
     let mods_columns = &mods_schema.columns;
 
-    for i in 0..20 {
+    let mut wtr = csv::Writer::from_path("output.csv")?;
+    let mut unknown_count = 0;
+    let headers = mods_columns.iter().map(|c| {
+        c.name.clone().unwrap_or_else(|| {
+            let s = format!("Unknown{unknown_count}");
+            unknown_count += 1;
+            s
+        })
+    });
+    wtr.write_record(headers)?;
+    for i in 0..mods_dat.row_count as usize {
         let mut row = mods_dat.nth_row(i);
-        dbg!(row.read_with_schema(mods_columns));
+        let values = row.read_with_schema(mods_columns);
+        let values = values.into_iter().map(|v| v.to_csv());
+        wtr.write_record(values)?;
     }
+    wtr.flush()?;
     Ok(())
 }
 
