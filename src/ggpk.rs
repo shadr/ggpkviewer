@@ -57,16 +57,16 @@ impl EntryTag {
     pub fn parse(reader: &mut impl io::Read) -> Result<Self, io::Error> {
         let mut tag = [0; 4];
         reader.read_exact(&mut tag)?;
-        if tag == "GGPK".as_bytes() {
+        if &tag == b"GGPK" {
             return Ok(Self::Ggpk);
         }
-        if tag == "FREE".as_bytes() {
+        if &tag == b"FREE" {
             return Ok(Self::Free);
         }
-        if tag == "PDIR".as_bytes() {
+        if &tag == b"PDIR" {
             return Ok(Self::Pdir);
         }
-        if tag == "FILE".as_bytes() {
+        if &tag == b"FILE" {
             return Ok(Self::File);
         }
         unimplemented!("Unknown entry tag: {:?}", String::from_utf8(tag.to_vec()));
@@ -112,7 +112,7 @@ impl EntryData {
                     .collect();
                 let sliceu16 = vecu16.as_slice();
                 let name = String::from_utf16_lossy(sliceu16)
-                    .trim_end_matches("\0")
+                    .trim_end_matches('\0')
                     .to_string();
 
                 let mut entries = Vec::with_capacity(total_entries as usize);
@@ -140,7 +140,7 @@ impl EntryData {
                     .collect();
                 let sliceu16 = vecu16.as_slice();
                 let name = String::from_utf16_lossy(sliceu16)
-                    .trim_end_matches("\0")
+                    .trim_end_matches('\0')
                     .to_string();
                 Self::File {
                     name_length,

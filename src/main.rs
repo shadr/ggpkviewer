@@ -113,7 +113,7 @@ impl FileSource for LocalSource {
 struct OnlineSource;
 
 impl FileSource for OnlineSource {
-    fn get_file(&mut self, path: &str) -> Result<Option<(Bundle, Vec<u8>)>, anyhow::Error> {
+    fn get_file(&mut self, _path: &str) -> Result<Option<(Bundle, Vec<u8>)>, anyhow::Error> {
         todo!()
     }
 }
@@ -210,7 +210,7 @@ fn main() -> Result<(), anyhow::Error> {
 
     for i in 0..20 {
         let mut row = mods_dat.nth_row(i);
-        row.read_with_schema(&mods_columns);
+        dbg!(row.read_with_schema(mods_columns));
     }
     Ok(())
 }
@@ -238,11 +238,9 @@ fn make_paths(reader: &mut Cursor<&[u8]>) -> Result<Vec<String>, io::Error> {
 
         let string = raw.trim_end_matches('\0');
 
-        let string = if let Some(prefix) = temp.get(index as usize) {
-            prefix.clone() + &string
-        } else {
-            string.to_string()
-        };
+        let string = temp
+            .get(index as usize)
+            .map_or_else(|| string.to_string(), |prefix| prefix.clone() + string);
 
         if base {
             temp.push(string);

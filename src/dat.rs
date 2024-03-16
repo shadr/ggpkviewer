@@ -1,11 +1,13 @@
 use std::{
-    io::{Cursor, Read, Seek, SeekFrom},
+    io::{Cursor, Seek, SeekFrom},
     ops::Range,
 };
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::dat_schema::{ColumnType, TableColumn};
+
+type ReadFn = fn(&mut Cursor<&[u8]>, &mut Cursor<&[u8]>) -> DatValue;
 
 #[derive(Debug)]
 pub struct DatFile {
@@ -47,7 +49,7 @@ impl DatFile {
         &self.data[self.variable_data_range.clone()]
     }
 
-    pub fn nth_row<'a>(&'a self, n: usize) -> DatRow<'a> {
+    pub fn nth_row(&self, n: usize) -> DatRow {
         let start = n * self.row_length;
         let end = start + self.row_length;
         DatRow {
@@ -63,12 +65,12 @@ pub fn read_variable_string(data: &[u8], offset: usize) -> String {
     let mut length = 0;
     for (index, wind) in windows.enumerate() {
         length = index;
-        if wind == &[0, 0, 0, 0] && length % 2 == 0 {
+        if wind == [0, 0, 0, 0] && length % 2 == 0 {
             break;
         }
     }
     let sliceu16 = unsafe { data[..length].align_to::<u16>().1 };
-    String::from_utf16_lossy(sliceu16).to_string()
+    String::from_utf16_lossy(sliceu16)
 }
 
 #[derive(Debug)]
@@ -109,7 +111,7 @@ impl<'a> DatRow<'a> {
         values
     }
 
-    pub fn get_fn(column: &TableColumn) -> fn(&mut Cursor<&[u8]>, &mut Cursor<&[u8]>) -> DatValue {
+    pub fn get_fn(column: &TableColumn) -> ReadFn {
         match column.ttype {
             ColumnType::Bool => read_bool,
             ColumnType::String => read_string,
@@ -134,7 +136,7 @@ impl<'a> DatRow<'a> {
         let variable_offset = self.fixed_cursor.read_u64::<LittleEndian>().unwrap();
         let mut clone = self.variable_cursor.clone();
         self.variable_cursor
-            .seek(SeekFrom::Start(variable_offset as u64))
+            .seek(SeekFrom::Start(variable_offset))
             .unwrap();
         for _ in 0..array_length {
             arr.push(f(&mut self.variable_cursor, &mut clone))
@@ -175,7 +177,7 @@ fn read_key(fixed_reader: &mut Cursor<&[u8]>, _: &mut Cursor<&[u8]>) -> DatValue
     DatValue::Row(row)
 }
 
-fn wrap_usize(value: usize) -> Option<usize> {
+const fn wrap_usize(value: usize) -> Option<usize> {
     if value == 0xfefefefefefefefe {
         None
     } else {
