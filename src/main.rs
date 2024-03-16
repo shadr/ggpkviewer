@@ -20,17 +20,21 @@ struct Args {
     ggpk: Option<PathBuf>,
     #[arg(short, long, group = "source")]
     online: bool,
+    #[command(subcommand)]
+    command: Command,
 }
 
-fn main() -> Result<(), anyhow::Error> {
-    let args = Args::parse();
-    let mut fs = if let Some(path) = args.ggpk {
-        PoeFS::new(LocalSource::new(path)?)
-    } else if args.online {
-        PoeFS::new(OnlineSource::new(None))
-    } else {
-        unreachable!()
-    };
+#[derive(Debug, clap::Subcommand)]
+pub enum Command {
+    Get {
+        file: String,
+        #[arg(default_value = "output.csv")]
+        output: PathBuf,
+    },
+    ListPaths,
+}
+
+fn get_file(fs: &mut PoeFS, path: &str, output: PathBuf) -> Result<(), anyhow::Error> {
     let mods = fs.get_file("data/mods.dat64")?.unwrap();
     let mods_dat = DatFile::new(mods);
 
@@ -56,5 +60,25 @@ fn main() -> Result<(), anyhow::Error> {
         wtr.write_record(values)?;
     }
     wtr.flush()?;
+    Ok(())
+}
+
+fn main() -> Result<(), anyhow::Error> {
+    let args = Args::parse();
+    let mut fs = if let Some(path) = args.ggpk {
+        PoeFS::new(LocalSource::new(path)?)
+    } else if args.online {
+        PoeFS::new(OnlineSource::new(None))
+    } else {
+        unreachable!()
+    };
+    match args.command {
+        Command::Get { file, output } => get_file(&mut fs, &file, output)?,
+        Command::ListPaths => {
+            for path in fs.get_paths() {
+                println!("{path}");
+            }
+        }
+    }
     Ok(())
 }

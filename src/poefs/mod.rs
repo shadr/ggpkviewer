@@ -86,6 +86,10 @@ impl PoeFS {
         let file_data = &bundle_uncompressed[start..end];
         Ok(Some(file_data.to_vec()))
     }
+
+    pub fn get_paths(&self) -> impl Iterator<Item = &String> {
+        self.paths.keys()
+    }
 }
 
 fn make_paths(reader: &mut Cursor<&[u8]>) -> Result<Vec<String>, io::Error> {
