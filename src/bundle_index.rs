@@ -2,6 +2,8 @@ use std::io::{self};
 
 use byteorder::{LittleEndian, ReadBytesExt};
 
+use crate::bundle::Bundle;
+
 #[derive(Debug)]
 pub struct BundleIndex {
     pub bundle_count: u32,
@@ -10,6 +12,8 @@ pub struct BundleIndex {
     pub files: Vec<FileRecord>,
     pub path_rep_count: u32,
     pub path_rep: Vec<PathRep>,
+    pub path_rep_bundle: Bundle,
+    pub path_rep_data: Vec<u8>,
 }
 
 impl BundleIndex {
@@ -32,6 +36,9 @@ impl BundleIndex {
             path_rep.push(PathRep::parse(reader)?);
         }
 
+        let path_rep_bundle = Bundle::parse(reader)?;
+        let path_rep_data = path_rep_bundle.data(reader)?;
+
         Ok(Self {
             bundle_count,
             bundles,
@@ -39,6 +46,8 @@ impl BundleIndex {
             files,
             path_rep_count,
             path_rep,
+            path_rep_bundle,
+            path_rep_data,
         })
     }
 }
