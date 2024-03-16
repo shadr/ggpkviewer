@@ -1,7 +1,4 @@
-use std::{
-    io::{self, SeekFrom},
-    path::{Component, Path},
-};
+use std::io::{self, SeekFrom};
 
 use crate::ggpk::{Entry, EntryData};
 
