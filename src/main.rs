@@ -9,7 +9,7 @@ use ggpk::{Entry, EntryData};
 use std::{
     collections::HashMap,
     fs::File,
-    io::{self, BufRead, Cursor, Read, SeekFrom},
+    io::{self, BufRead, Cursor, Read, Seek, SeekFrom},
     path::{Path, PathBuf},
 };
 
@@ -197,8 +197,53 @@ fn main() -> Result<(), anyhow::Error> {
         unreachable!()
     };
     let mods = fs.get_file("data/mods.dat64")?.unwrap();
-    std::fs::write("output", mods)?;
+    let row_count = u32::from_le_bytes([mods[0], mods[1], mods[2], mods[3]]);
+    let boundary = mods
+        .windows(8)
+        .position(|wind| wind.iter().all(|b| *b == 0xBB))
+        .unwrap();
+    let row_length = (boundary as u32 - 4) / row_count;
+
+    let fixed_data = &mods[4..boundary];
+    let variable_data = &mods[boundary..];
+
+    let mut fixed_cursor = Cursor::new(fixed_data);
+    let mut variable_cursor = Cursor::new(variable_data);
+
+    for _ in 0..20 {
+        let row_start = fixed_cursor.position();
+
+        let string_offset = fixed_cursor.read_u32::<LittleEndian>()?;
+        variable_cursor.seek(SeekFrom::Start(string_offset as u64))?;
+        let mut buf = Vec::new();
+        for wind in variable_data[string_offset as usize..].windows(4) {
+            if wind == &[0, 0, 0, 0] && buf.len() % 2 == 0 {
+                break;
+            }
+            buf.push(wind[0]);
+        }
+        let vecu16: Vec<u16> = buf
+            .chunks_exact(2)
+            .map(|a| u16::from_ne_bytes([a[0], a[1]]))
+            .collect();
+        let sliceu16 = vecu16.as_slice();
+        let string = String::from_utf16_lossy(sliceu16)
+            .trim_end_matches("\0")
+            .to_string();
+        dbg!(string);
+
+        let row_end = fixed_cursor.position();
+        let row_consumed = row_end - row_start;
+        let row_left = row_length as u64 - row_consumed;
+        fixed_cursor.seek(SeekFrom::Current(row_left as i64))?;
+    }
     Ok(())
+}
+
+fn find_sequence(bytes: &[u8], find: &[u8], offset: usize) -> Option<usize> {
+    bytes[offset..]
+        .windows(find.len())
+        .position(|wind| wind == find)
 }
 
 fn make_paths(reader: &mut Cursor<&[u8]>) -> Result<Vec<String>, io::Error> {
