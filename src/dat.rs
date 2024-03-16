@@ -126,7 +126,7 @@ impl<'a> DatRow<'a> {
 
     pub fn read_scalar(&mut self, column: &TableColumn) -> DatValue {
         let f = Self::get_fn(column);
-        f(&mut self.fixed_cursor, &mut self.variable_data)
+        f(&mut self.fixed_cursor, self.variable_data)
     }
 
     pub fn read_array(&mut self, column: &TableColumn) -> DatValue {
@@ -203,20 +203,20 @@ pub enum DatValue {
 impl DatValue {
     pub fn to_csv(self) -> String {
         match self {
-            DatValue::Bool(b) => b.to_string(),
-            DatValue::String(s) => s,
-            DatValue::I32(i) => i.to_string(),
-            DatValue::F32(f) => f.to_string(),
-            DatValue::Array(a) => {
+            Self::Bool(b) => b.to_string(),
+            Self::String(s) => s,
+            Self::I32(i) => i.to_string(),
+            Self::F32(f) => f.to_string(),
+            Self::Array(a) => {
                 let a = a.into_iter().map(|v| v.to_csv()).collect::<Vec<_>>();
                 let joined = a.join(",");
                 format!("[{joined}]")
             }
-            DatValue::Row(r) => format!("{r:?}"),
-            DatValue::ForeignRow { rid, .. } => {
+            Self::Row(r) => format!("{r:?}"),
+            Self::ForeignRow { rid, .. } => {
                 format!("{rid:?}")
             }
-            DatValue::EnumRow(r) => r.to_string(),
+            Self::EnumRow(r) => r.to_string(),
         }
     }
 }
