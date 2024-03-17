@@ -34,11 +34,12 @@ pub enum Command {
     ListPaths,
 }
 
-fn get_dat_file(
+fn save_dat_file(
     bytes: Vec<u8>,
-    table_name: &str,
+    path: impl AsRef<Path>,
     output: impl AsRef<Path>,
 ) -> Result<(), anyhow::Error> {
+    let table_name = path.as_ref().file_stem().unwrap().to_str().unwrap();
     let file_dat = DatFile::new(bytes);
 
     let schema_content = std::fs::read_to_string("schema.min.json")?;
@@ -67,14 +68,30 @@ fn get_dat_file(
     Ok(())
 }
 
+fn save_txt_file(
+    bytes: Vec<u8>,
+    _path: impl AsRef<Path>,
+    output: impl AsRef<Path>,
+) -> Result<(), anyhow::Error> {
+    let vecu16: Vec<u16> = bytes
+        .chunks_exact(2)
+        .map(|a| u16::from_ne_bytes([a[0], a[1]]))
+        .collect();
+    let text = String::from_utf16_lossy(&vecu16);
+    std::fs::write(output, text)?;
+    Ok(())
+}
+
 fn get_file(fs: &mut PoeFS, path: PathBuf, output: PathBuf) -> Result<(), anyhow::Error> {
     let extension = path.extension().unwrap().to_str().unwrap();
-    let file_name = path.file_stem().unwrap().to_str().unwrap();
     let file_bytes = fs.get_file(path.to_str().unwrap())?.unwrap();
 
     match extension {
         "dat64" => {
-            get_dat_file(file_bytes, file_name, output)?;
+            save_dat_file(file_bytes, path, output)?;
+        }
+        "txt" => {
+            save_txt_file(file_bytes, path, output)?;
         }
         _ => unimplemented!(
             "Reading files with extension: '{}' not supported yet",

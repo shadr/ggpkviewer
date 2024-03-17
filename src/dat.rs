@@ -61,14 +61,11 @@ impl DatFile {
 
 pub fn read_variable_string(data: &[u8], offset: usize) -> String {
     let data = &data[offset..];
-    let windows = data.windows(4);
-    let mut length = 0;
-    for (index, wind) in windows.enumerate() {
-        length = index;
-        if wind == [0, 0, 0, 0] && length % 2 == 0 {
-            break;
-        }
-    }
+    let length = data
+        .windows(4)
+        .enumerate()
+        .position(|(index, wind)| wind == [0, 0, 0, 0] && index % 2 == 0)
+        .unwrap();
     let vecu16: Vec<u16> = data[..length]
         .chunks_exact(2)
         .map(|a| u16::from_ne_bytes([a[0], a[1]]))
@@ -104,13 +101,11 @@ impl<'a> DatRow<'a> {
     pub fn read_with_schema(&mut self, columns: &[TableColumn]) -> Vec<DatValue> {
         let mut values = Vec::new();
         for column in columns {
-            dbg!(column);
             let value = if column.array {
                 self.read_array(column)
             } else {
                 self.read_scalar(column)
             };
-            dbg!(&value);
             values.push(value);
         }
         values
