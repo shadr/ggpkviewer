@@ -77,7 +77,7 @@ fn get_file(fs: &mut PoeFS, path: PathBuf, output: PathBuf) -> Result<(), anyhow
             get_dat_file(file_bytes, file_name, output)?;
         }
         _ => unimplemented!(
-            "Reading files with extension: {} not supported yet",
+            "Reading files with extension: '{}' not supported yet",
             extension
         ),
     }

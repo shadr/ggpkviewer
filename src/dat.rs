@@ -69,8 +69,11 @@ pub fn read_variable_string(data: &[u8], offset: usize) -> String {
             break;
         }
     }
-    let sliceu16 = unsafe { data[..length].align_to::<u16>().1 };
-    String::from_utf16_lossy(sliceu16)
+    let vecu16: Vec<u16> = data[..length]
+        .chunks_exact(2)
+        .map(|a| u16::from_ne_bytes([a[0], a[1]]))
+        .collect();
+    String::from_utf16_lossy(&vecu16)
 }
 
 #[derive(Debug)]
@@ -101,11 +104,13 @@ impl<'a> DatRow<'a> {
     pub fn read_with_schema(&mut self, columns: &[TableColumn]) -> Vec<DatValue> {
         let mut values = Vec::new();
         for column in columns {
+            dbg!(column);
             let value = if column.array {
                 self.read_array(column)
             } else {
                 self.read_scalar(column)
             };
+            dbg!(&value);
             values.push(value);
         }
         values
