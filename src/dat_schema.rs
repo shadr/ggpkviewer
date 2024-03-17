@@ -7,6 +7,14 @@ pub struct SchemaFile {
     pub enumerations: Vec<SchemaEnumeration>,
 }
 
+impl SchemaFile {
+    pub fn find_table(&self, table_name: &str) -> Option<&SchemaTable> {
+        self.tables
+            .iter()
+            .find(|t| t.name.to_lowercase() == table_name)
+    }
+}
+
 #[derive(Debug, serde::Deserialize)]
 pub struct SchemaTable {
     pub name: String,

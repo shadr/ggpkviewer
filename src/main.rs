@@ -35,23 +35,13 @@ pub enum Command {
 }
 
 fn get_file(fs: &mut PoeFS, path: PathBuf, output: PathBuf) -> Result<(), anyhow::Error> {
-    let file_name = path
-        .file_name()
-        .unwrap()
-        .to_str()
-        .unwrap()
-        .trim_end_matches(".dat64")
-        .trim_end_matches(".datl64");
+    let file_name = path.file_stem().unwrap().to_str().unwrap();
     let file_bytes = fs.get_file(path.to_str().unwrap())?.unwrap();
     let file_dat = DatFile::new(file_bytes);
 
     let schema_content = std::fs::read_to_string("schema.min.json")?;
     let schema: SchemaFile = serde_json::from_str(&schema_content)?;
-    let file_schema = schema
-        .tables
-        .iter()
-        .find(|t| t.name.to_lowercase() == file_name)
-        .unwrap();
+    let file_schema = schema.find_table(file_name).unwrap();
     let file_columns = &file_schema.columns;
 
     let mut wtr = csv::Writer::from_path(output)?;
