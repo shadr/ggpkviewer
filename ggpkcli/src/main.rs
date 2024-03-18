@@ -70,7 +70,7 @@ fn save_dat_file(
     });
 
     wtr.write_record(headers)?;
-    for i in 0..file_dat.row_count as usize {
+    for i in 0..file_dat.row_count() as usize {
         let mut row = file_dat.nth_row(i);
         let values = row.read_with_schema(file_columns);
         let values = values.into_iter().map(datvalue_to_csv_cell);

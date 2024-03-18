@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     io::{Cursor, Seek, SeekFrom},
     ops::Range,
 };
@@ -11,12 +12,11 @@ type ReadFn = fn(&mut Cursor<&[u8]>, &[u8]) -> DatValue;
 
 #[derive(Debug)]
 pub struct DatFile {
-    pub data: Vec<u8>,
-    pub row_count: u32,
-    pub boundary: usize,
-    pub row_length: usize,
-    pub fixed_data_range: Range<usize>,
-    pub variable_data_range: Range<usize>,
+    data: Vec<u8>,
+    row_count: u32,
+    row_length: usize,
+    fixed_data_range: Range<usize>,
+    variable_data_range: Range<usize>,
 }
 
 impl DatFile {
@@ -34,21 +34,34 @@ impl DatFile {
         Self {
             data,
             row_count,
-            boundary,
             row_length,
             fixed_data_range,
             variable_data_range,
         }
     }
 
+    /// Returns the row length in bytes
+    pub fn row_length(&self) -> usize {
+        self.row_length
+    }
+
+    /// Returns the number of rows
+    pub fn row_count(&self) -> u32 {
+        self.row_count
+    }
+
+    /// Returns byte slice of data where fixed length data is located, length of the slice is equal
+    /// to the row length in bytes * the number of rows
     pub fn fixed_data(&self) -> &[u8] {
         &self.data[self.fixed_data_range.clone()]
     }
 
+    /// Returns byte slice of data where variable length data is located
     pub fn variable_data(&self) -> &[u8] {
         &self.data[self.variable_data_range.clone()]
     }
 
+    /// Returns the nth row
     pub fn nth_row(&self, n: usize) -> DatRow {
         let start = n * self.row_length;
         let end = start + self.row_length;
@@ -56,6 +69,28 @@ impl DatFile {
             fixed_cursor: Cursor::new(&self.fixed_data()[start..end]),
             variable_data: self.variable_data(),
         }
+    }
+
+    /// Returns an iterator over the rows
+    pub fn iter_rows(&self) -> impl Iterator<Item = DatRow> {
+        (0..self.row_count as usize).map(move |n| self.nth_row(n))
+    }
+
+    /// Returns an iterator over the rows, reading rows with schema to Vec
+    pub fn iter_rows_vec<'a>(
+        &'a self,
+        columns: &'a [TableColumn],
+    ) -> impl Iterator<Item = Vec<DatValue>> + 'a {
+        self.iter_rows()
+            .map(|mut row| row.read_with_schema(columns))
+    }
+
+    /// Returns an iterator over the rows, reading rows with schema to HashMap
+    pub fn iter_rows_map<'a>(
+        &'a self,
+        columns: &'a [TableColumn],
+    ) -> impl Iterator<Item = HashMap<String, DatValue>> + 'a {
+        self.iter_rows().map(|mut row| row.read_to_map(columns))
     }
 }
 
@@ -86,18 +121,6 @@ impl<'a> AsRef<[u8]> for DatRow<'a> {
 }
 
 impl<'a> DatRow<'a> {
-    pub fn read_u32(&mut self) -> u32 {
-        self.fixed_cursor.read_u32::<LittleEndian>().unwrap()
-    }
-
-    pub fn read_u64(&mut self) -> u64 {
-        self.fixed_cursor.read_u64::<LittleEndian>().unwrap()
-    }
-
-    pub fn read_i32(&mut self) -> i32 {
-        self.fixed_cursor.read_i32::<LittleEndian>().unwrap()
-    }
-
     pub fn read_with_schema(&mut self, columns: &[TableColumn]) -> Vec<DatValue> {
         let mut values = Vec::new();
         for column in columns {
@@ -111,7 +134,26 @@ impl<'a> DatRow<'a> {
         values
     }
 
-    pub fn get_fn(column: &TableColumn) -> ReadFn {
+    pub fn read_to_map(&mut self, columns: &[TableColumn]) -> HashMap<String, DatValue> {
+        let mut unknown_column_count = 0;
+        let mut values = HashMap::new();
+        for column in columns {
+            let value = if column.array {
+                self.read_array(column)
+            } else {
+                self.read_scalar(column)
+            };
+            let column_name = column.name.clone().unwrap_or_else(|| {
+                let s = format!("Unknown{unknown_column_count}");
+                unknown_column_count += 1;
+                s
+            });
+            values.insert(column_name, value);
+        }
+        values
+    }
+
+    fn get_fn(column: &TableColumn) -> ReadFn {
         match column.ttype {
             ColumnType::Bool => read_bool,
             ColumnType::String => read_string,
@@ -124,12 +166,12 @@ impl<'a> DatRow<'a> {
         }
     }
 
-    pub fn read_scalar(&mut self, column: &TableColumn) -> DatValue {
+    fn read_scalar(&mut self, column: &TableColumn) -> DatValue {
         let f = Self::get_fn(column);
         f(&mut self.fixed_cursor, self.variable_data)
     }
 
-    pub fn read_array(&mut self, column: &TableColumn) -> DatValue {
+    fn read_array(&mut self, column: &TableColumn) -> DatValue {
         let f = Self::get_fn(column);
         let array_length = self.fixed_cursor.read_u64::<LittleEndian>().unwrap();
         let mut arr = Vec::new();

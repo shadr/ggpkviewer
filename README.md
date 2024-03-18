@@ -38,7 +38,7 @@ let file_schema = schema.find_table("mods").unwrap();
 // Get column definitions
 let file_columns = &file_schema.columns;
 
-for i in 0..file_dat.row_count as usize {
+for i in 0..file_dat.row_count() as usize {
     let mut row = file_dat.nth_row(i);
     // Values will contain Vec<DatValue> where DatValue is enum of possible types
     // values[nth] corresponds to file_columns[nth] column definition
