@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use ggpklib::dat::{DatFile, DatValue};
 use ggpklib::dat_schema::SchemaFile;
-use ggpklib::poefs::{local::LocalSource, online::OnlineSource, PoeFS};
+use ggpklib::poefs::{LocalSource, OnlineSource, PoeFS};
 
 use clap::Parser;
 

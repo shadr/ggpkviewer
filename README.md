@@ -12,7 +12,7 @@ ggpklib = { git = "https://github.com/shadr/ggpkviewer.git" }
 
 To get files first we need to create instance of our virtual file system
 ```rust
-use ggpklib::poefs::{PoeFS, local:LocalSource, online::OnlineSource};
+use ggpklib::poefs::{PoeFS, LocalSource, OnlineSource};
 
 // Create source for file system from local GGPK file
 let source = LocalSource::new(path).unwrap();

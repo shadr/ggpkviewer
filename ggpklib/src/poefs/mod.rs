@@ -1,3 +1,6 @@
+mod local;
+mod online;
+
 use std::{
     collections::HashMap,
     io::{self, BufRead, Cursor},
@@ -7,9 +10,8 @@ use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt};
 
 use crate::{bundle::Bundle, bundle_index::BundleIndex};
-
-pub mod local;
-pub mod online;
+pub use local::LocalSource;
+pub use online::OnlineSource;
 
 pub trait FileSource {
     fn get_file(&mut self, path: &str) -> Result<Option<(Bundle, Vec<u8>)>, anyhow::Error>;
