@@ -121,6 +121,7 @@ impl<'a> AsRef<[u8]> for DatRow<'a> {
 }
 
 impl<'a> DatRow<'a> {
+    /// Parse a row using provided column definitions and return a Vec of parsed values
     pub fn read_with_schema(&mut self, columns: &[TableColumn]) -> Vec<DatValue> {
         let mut values = Vec::new();
         for column in columns {
@@ -134,6 +135,7 @@ impl<'a> DatRow<'a> {
         values
     }
 
+    /// Parse a row using provided column definitions and return a HashMap where keys are column names
     pub fn read_to_map(&mut self, columns: &[TableColumn]) -> HashMap<String, DatValue> {
         let mut unknown_column_count = 0;
         let mut values = HashMap::new();
@@ -245,8 +247,8 @@ pub enum DatValue {
 impl DatValue {
     /// Gets the value as a bool
     ///
-    /// Panic:
-    ///   - If the DatValue is not a DatValue::Bool variant
+    /// # Panics:
+    /// If the DatValue is not a DatValue::Bool variant
     pub fn as_bool(&self) -> bool {
         match self {
             Self::Bool(b) => *b,
@@ -256,8 +258,8 @@ impl DatValue {
 
     /// Gets the value as a string
     ///
-    /// Panic:
-    ///   - If the DatValue is not a DatValue::String variant
+    /// # Panics:
+    /// If the DatValue is not a DatValue::String variant
     pub fn as_string(&self) -> String {
         match self {
             Self::String(s) => s.clone(),
@@ -267,8 +269,8 @@ impl DatValue {
 
     /// Gets the value as an i32
     ///
-    /// Panic:
-    ///   - If the DatValue is not a DatValue::I32 variant
+    /// # Panics:
+    /// If the DatValue is not a DatValue::I32 variant
     pub fn as_i32(&self) -> i32 {
         match self {
             Self::I32(i) => *i,
@@ -278,8 +280,8 @@ impl DatValue {
 
     /// Gets the value as a enum row index
     ///
-    /// Panic:
-    ///   - If the DatValue is not a DatValue::EnumRow variant
+    /// # Panics:
+    /// If the DatValue is not a DatValue::EnumRow variant
     pub fn as_enum_row_index(&self) -> usize {
         match self {
             Self::EnumRow(i) => *i,
@@ -289,8 +291,8 @@ impl DatValue {
 
     /// Gets the value as a foreign row index
     ///
-    /// Panic:
-    ///   - If the DatValue is not a DatValue::ForeignRow variant
+    /// # Panics:
+    /// If the DatValue is not a DatValue::ForeignRow variant
     pub fn as_foreign_row_index(&self) -> Option<usize> {
         match self {
             Self::ForeignRow { rid, .. } => *rid,
@@ -300,8 +302,8 @@ impl DatValue {
 
     /// Gets the value as an row index
     ///
-    /// Panic:
-    ///   - If the DatValue is not a DatValue::Row variant
+    /// # Panics:
+    /// If the DatValue is not a DatValue::Row variant
     pub fn as_row_index(&self) -> Option<usize> {
         match self {
             Self::Row(i) => *i,
