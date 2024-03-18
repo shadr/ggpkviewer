@@ -35,12 +35,12 @@ impl TranslationFile {
         Self { file }
     }
 
-    pub fn parse(&self) -> HashMap<&str, BTreeMap<Vec<&str>, Vec<&str>>> {
+    pub fn parse(&self) -> HashMap<&str, BTreeMap<StatKey, Vec<TranslationRow>>> {
         let mut state = State::Description;
         let mut lang = "English";
         let mut row_count = 0;
-        let mut stats_ids = Vec::new();
-        let mut map: HashMap<&str, BTreeMap<Vec<&str>, Vec<&str>>> = HashMap::new();
+        let mut stats_ids = StatKey::Single(String::new());
+        let mut map: HashMap<&str, BTreeMap<StatKey, Vec<TranslationRow>>> = HashMap::new();
         for line in self.file.lines() {
             if line.trim().is_empty() {
                 continue;
@@ -60,8 +60,13 @@ impl TranslationFile {
                         .unwrap()
                         .as_str()
                         .split(' ')
+                        .map(|s| s.to_string())
                         .collect::<Vec<_>>();
-                    stats_ids = new_stats_ids;
+                    if new_stats_ids.len() == 1 {
+                        stats_ids = StatKey::Single(new_stats_ids[0].clone());
+                    } else {
+                        stats_ids = StatKey::Multiple(new_stats_ids);
+                    }
                     state = State::Lang;
                     lang = "English";
                 }
@@ -89,12 +94,19 @@ impl TranslationFile {
                 State::Rows => {
                     row_count -= 1;
                     let cap = ROW_REGEX.captures(line).unwrap();
-                    let s = cap.name("description").unwrap().as_str();
+                    let format_string = cap.name("description").unwrap().as_str().to_string();
+                    let condition = cap.name("minmax").unwrap().as_str().to_string();
+                    let modifiers = cap.name("quantifier").unwrap().as_str().to_string();
+                    let row = TranslationRow {
+                        condition,
+                        format_string,
+                        modifiers,
+                    };
                     map.entry(lang)
                         .or_default()
                         .entry(stats_ids.clone())
                         .or_default()
-                        .push(s);
+                        .push(row);
                     if row_count == 0 {
                         state = State::Lang;
                     }
@@ -103,4 +115,17 @@ impl TranslationFile {
         }
         map
     }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum StatKey {
+    Single(String),
+    Multiple(Vec<String>),
+}
+
+#[derive(Debug)]
+pub struct TranslationRow {
+    pub condition: String,
+    pub format_string: String,
+    pub modifiers: String,
 }
