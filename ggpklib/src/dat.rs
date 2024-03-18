@@ -229,7 +229,7 @@ const fn wrap_usize(value: usize) -> Option<usize> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum DatValue {
     Bool(bool),
     String(String),
@@ -308,6 +308,35 @@ impl DatValue {
         match self {
             Self::Row(i) => *i,
             _ => panic!("DatValue is not a DatValue::Row variant"),
+        }
+    }
+
+    /// Gets the value as an array
+    ///
+    /// # Panics:
+    /// If the DatValue is not a DatValue::Array variant
+    pub fn as_array(&self) -> Vec<DatValue> {
+        match self {
+            Self::Array(a) => a.clone(),
+            _ => panic!("DatValue is not a DatValue::Array variant"),
+        }
+    }
+
+    /// Gets the value as an array of specific type
+    ///
+    /// # Usage:
+    /// ```
+    /// let i32_array = datvalue.as_array_with(DatValue::as_i32);
+    ///
+    /// ```
+    ///
+    /// # Panics:
+    /// If the DatValue is not a DatValue::Array variant
+    /// or if any element panics when casting using passed function
+    pub fn as_array_with<T>(&self, f: impl Fn(&Self) -> T) -> Vec<T> {
+        match self {
+            Self::Array(a) => a.iter().map(f).collect(),
+            _ => panic!("DatValue is not a DatValue::Array variant"),
         }
     }
 }
