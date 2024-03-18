@@ -10,7 +10,7 @@ static DESCRIPTION_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"(?:^"(?P<header>.*)"$)|(?:^include "(?P<include>.*)")|(?:^no_description[\s]*(?P<no_description>[\w+%]*)[\s]*$)|(?P<description>^description[\s]*(?P<identifier>[\S]*)[\s]*$)"#).unwrap()
 });
 static STATS_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r#"^[\s]*(?P<stat_id_count>[0-9]+) (?P<stat_ids>.*+)$"#).unwrap());
+    Lazy::new(|| Regex::new(r#"^[\s]*(?:[0-9]+) (?P<stat_ids>.*+)$"#).unwrap());
 static LANG_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r#"^[\s]*lang "(?P<language>[\w ]+)"[\s]*$"#).unwrap());
 static ROW_COUNT_REGEX: Lazy<Regex> =
@@ -39,7 +39,7 @@ impl TranslationFile {
         let mut state = State::Description;
         let mut lang = "English";
         let mut row_count = 0;
-        let mut stats_ids = StatKey::Single(String::new());
+        let mut stats_ids = StatKey::Single("");
         let mut map: HashMap<&str, BTreeMap<StatKey, Vec<TranslationRow>>> = HashMap::new();
         for line in self.file.lines() {
             if line.trim().is_empty() {
@@ -55,17 +55,11 @@ impl TranslationFile {
                 }
                 State::Stats => {
                     let stats = STATS_REGEX.captures(line).unwrap();
-                    let new_stats_ids = stats
-                        .name("stat_ids")
-                        .unwrap()
-                        .as_str()
-                        .split(' ')
-                        .map(|s| s.to_string())
-                        .collect::<Vec<_>>();
-                    if new_stats_ids.len() == 1 {
-                        stats_ids = StatKey::Single(new_stats_ids[0].clone());
+                    let stats_ids_str = stats.name("stat_ids").unwrap().as_str().trim();
+                    if stats_ids_str.chars().filter(|c| *c == ' ').count() == 1 {
+                        stats_ids = StatKey::Single(stats_ids_str);
                     } else {
-                        stats_ids = StatKey::Multiple(new_stats_ids);
+                        stats_ids = StatKey::Multiple(stats_ids_str.split(' ').collect());
                     }
                     state = State::Lang;
                     lang = "English";
@@ -92,9 +86,9 @@ impl TranslationFile {
                 State::Rows => {
                     row_count -= 1;
                     let cap = ROW_REGEX.captures(line).unwrap();
-                    let format_string = cap.name("description").unwrap().as_str().to_string();
-                    let condition = cap.name("minmax").unwrap().as_str().to_string();
-                    let modifiers = cap.name("quantifier").unwrap().as_str().to_string();
+                    let format_string = cap.name("description").unwrap().as_str();
+                    let condition = cap.name("minmax").unwrap().as_str();
+                    let modifiers = cap.name("quantifier").unwrap().as_str();
                     let row = TranslationRow {
                         condition,
                         format_string,
@@ -116,14 +110,14 @@ impl TranslationFile {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum StatKey {
-    Single(String),
-    Multiple(Vec<String>),
+pub enum StatKey<'a> {
+    Single(&'a str),
+    Multiple(Vec<&'a str>),
 }
 
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct TranslationRow {
-    pub condition: String,
-    pub format_string: String,
-    pub modifiers: String,
+pub struct TranslationRow<'a> {
+    pub condition: &'a str,
+    pub format_string: &'a str,
+    pub modifiers: &'a str,
 }
