@@ -1,3 +1,5 @@
+use std::path::Path;
+
 #[derive(Debug, serde::Deserialize)]
 pub struct SchemaFile {
     pub version: u32,
@@ -8,6 +10,16 @@ pub struct SchemaFile {
 }
 
 impl SchemaFile {
+    /// Reads the content of the file and deserializes it
+    pub fn read_from_file(path: impl AsRef<Path>) -> Result<Self, anyhow::Error> {
+        let content = std::fs::read_to_string(path)?;
+        Ok(serde_json::from_str(&content)?)
+    }
+
+    pub fn read_from_str(content: &str) -> Result<Self, anyhow::Error> {
+        Ok(serde_json::from_str(content)?)
+    }
+
     pub fn find_table(&self, table_name: &str) -> Option<&SchemaTable> {
         self.tables
             .iter()
