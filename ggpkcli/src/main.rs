@@ -9,10 +9,27 @@ use clap::Parser;
 #[derive(Debug, Parser)]
 #[clap(group(clap::ArgGroup::new("source").required(true)))]
 struct Args {
-    #[arg(short, long, group = "source")]
+    #[arg(
+        short,
+        long,
+        group = "source",
+        requires = "schema_path",
+        help = "Get files from local GGPK file"
+    )]
     ggpk: Option<PathBuf>,
-    #[arg(short, long, group = "source")]
+    #[arg(
+        short,
+        long,
+        group = "source",
+        help = "Get requested file from patch server"
+    )]
     online: bool,
+    #[arg(
+        short,
+        long,
+        help = "Path to schema.json file, only needed if '--ggpk' argument is used"
+    )]
+    schema_path: Option<PathBuf>,
     #[command(subcommand)]
     command: Command,
 }
@@ -48,14 +65,13 @@ fn datvalue_to_csv_cell(value: DatValue) -> String {
 
 fn save_dat_file(
     bytes: Vec<u8>,
+    schema: &SchemaFile,
     path: impl AsRef<Path>,
     output: impl AsRef<Path>,
 ) -> Result<(), anyhow::Error> {
     let table_name = path.as_ref().file_stem().unwrap().to_str().unwrap();
     let file_dat = DatFile::new(bytes);
 
-    let schema_content = std::fs::read_to_string("schema.min.json")?;
-    let schema: SchemaFile = serde_json::from_str(&schema_content)?;
     let file_schema = schema.find_table(table_name).unwrap();
     let file_columns = &file_schema.columns;
 
@@ -94,13 +110,18 @@ fn save_txt_file(
     Ok(())
 }
 
-fn get_file(fs: &mut PoeFS, path: PathBuf, output: PathBuf) -> Result<(), anyhow::Error> {
+fn get_file(
+    fs: &mut PoeFS,
+    path: PathBuf,
+    output: PathBuf,
+    schema: &SchemaFile,
+) -> Result<(), anyhow::Error> {
     let extension = path.extension().unwrap().to_str().unwrap();
     let file_bytes = fs.get_file(path.to_str().unwrap())?.unwrap();
 
     match extension {
         "dat64" => {
-            save_dat_file(file_bytes, path, output)?;
+            save_dat_file(file_bytes, schema, path, output)?;
         }
         "txt" => {
             save_txt_file(file_bytes, path, output)?;
@@ -116,15 +137,18 @@ fn get_file(fs: &mut PoeFS, path: PathBuf, output: PathBuf) -> Result<(), anyhow
 
 fn main() -> Result<(), anyhow::Error> {
     let args = Args::parse();
+    let schema;
     let mut fs = if let Some(path) = args.ggpk {
+        schema = SchemaFile::read_from_file(args.schema_path.unwrap())?;
         PoeFS::new(LocalSource::new(path)?)
     } else if args.online {
+        todo!();
         PoeFS::new(OnlineSource::new(None))
     } else {
         unreachable!()
     };
     match args.command {
-        Command::Get { file, output } => get_file(&mut fs, file, output)?,
+        Command::Get { file, output } => get_file(&mut fs, file, output, &schema)?,
         Command::ListPaths => {
             for path in fs.get_paths() {
                 println!("{path}");
