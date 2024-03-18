@@ -87,8 +87,8 @@ impl TranslationFile {
                     row_count -= 1;
                     let cap = ROW_REGEX.captures(line).unwrap();
                     let format_string = cap.name("description").unwrap().as_str();
-                    let condition = cap.name("minmax").unwrap().as_str();
-                    let modifiers = cap.name("quantifier").unwrap().as_str();
+                    let condition = cap.name("minmax").unwrap().as_str().trim();
+                    let modifiers = cap.name("quantifier").unwrap().as_str().trim();
                     let row = TranslationRow {
                         condition,
                         format_string,
@@ -115,9 +115,22 @@ pub enum StatKey<'a> {
     Multiple(Vec<&'a str>),
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+impl<'a> serde::Serialize for StatKey<'a> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            StatKey::Single(s) => serializer.serialize_str(s),
+            StatKey::Multiple(v) => serializer.serialize_str(&v.join(" ")),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, serde::Serialize)]
 pub struct TranslationRow<'a> {
     pub condition: &'a str,
     pub format_string: &'a str,
+    #[serde(skip_serializing_if = "str::is_empty")]
     pub modifiers: &'a str,
 }
