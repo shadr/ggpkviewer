@@ -200,4 +200,70 @@ pub enum DatValue {
     EnumRow(usize),
 }
 
-impl DatValue {}
+impl DatValue {
+    /// Gets the value as a bool
+    ///
+    /// Panic:
+    ///   - If the DatValue is not a DatValue::Bool variant
+    pub fn as_bool(&self) -> bool {
+        match self {
+            Self::Bool(b) => *b,
+            _ => panic!("DatValue is not a DatValue::Bool variant"),
+        }
+    }
+
+    /// Gets the value as a string
+    ///
+    /// Panic:
+    ///   - If the DatValue is not a DatValue::String variant
+    pub fn as_string(&self) -> String {
+        match self {
+            Self::String(s) => s.clone(),
+            _ => panic!("DatValue is not a DatValue::String variant"),
+        }
+    }
+
+    /// Gets the value as an i32
+    ///
+    /// Panic:
+    ///   - If the DatValue is not a DatValue::I32 variant
+    pub fn as_i32(&self) -> i32 {
+        match self {
+            Self::I32(i) => *i,
+            _ => panic!("DatValue is not a DatValue::I32 variant"),
+        }
+    }
+
+    /// Gets the value as a enum row index
+    ///
+    /// Panic:
+    ///   - If the DatValue is not a DatValue::EnumRow variant
+    pub fn as_enum_row_index(&self) -> usize {
+        match self {
+            Self::EnumRow(i) => *i,
+            _ => panic!("DatValue is not a DatValue::EnumRow variant"),
+        }
+    }
+
+    /// Gets the value as a foreign row index
+    ///
+    /// Panic:
+    ///   - If the DatValue is not a DatValue::ForeignRow variant
+    pub fn as_foreign_row_index(&self) -> Option<usize> {
+        match self {
+            Self::ForeignRow { rid, .. } => *rid,
+            _ => panic!("DatValue is not a DatValue::ForeignRow variant"),
+        }
+    }
+
+    /// Gets the value as an row index
+    ///
+    /// Panic:
+    ///   - If the DatValue is not a DatValue::Row variant
+    pub fn as_row_index(&self) -> Option<usize> {
+        match self {
+            Self::Row(i) => *i,
+            _ => panic!("DatValue is not a DatValue::Row variant"),
+        }
+    }
+}
