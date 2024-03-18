@@ -252,7 +252,7 @@ impl DatValue {
     pub fn as_bool(&self) -> bool {
         match self {
             Self::Bool(b) => *b,
-            _ => panic!("DatValue is not a DatValue::Bool variant"),
+            _ => panic!("Expected DatValue::Bool variant, got {:?}", self),
         }
     }
 
@@ -263,7 +263,7 @@ impl DatValue {
     pub fn as_string(&self) -> String {
         match self {
             Self::String(s) => s.clone(),
-            _ => panic!("DatValue is not a DatValue::String variant"),
+            _ => panic!("Expected DatValue::String variant, got {:?}", self),
         }
     }
 
@@ -274,7 +274,7 @@ impl DatValue {
     pub fn as_i32(&self) -> i32 {
         match self {
             Self::I32(i) => *i,
-            _ => panic!("DatValue is not a DatValue::I32 variant"),
+            _ => panic!("Expected DatValue::I32 variant, got {:?}", self),
         }
     }
 
@@ -285,7 +285,7 @@ impl DatValue {
     pub fn as_enum_row_index(&self) -> usize {
         match self {
             Self::EnumRow(i) => *i,
-            _ => panic!("DatValue is not a DatValue::EnumRow variant"),
+            _ => panic!("Expected DatValue::EnumRow variant, got {:?}", self),
         }
     }
 
@@ -296,7 +296,7 @@ impl DatValue {
     pub fn as_foreign_row_index(&self) -> Option<usize> {
         match self {
             Self::ForeignRow { rid, .. } => *rid,
-            _ => panic!("DatValue is not a DatValue::ForeignRow variant"),
+            _ => panic!("Expected DatValue::ForeignRow variant, got {:?}", self),
         }
     }
 
@@ -307,7 +307,7 @@ impl DatValue {
     pub fn as_row_index(&self) -> Option<usize> {
         match self {
             Self::Row(i) => *i,
-            _ => panic!("DatValue is not a DatValue::Row variant"),
+            _ => panic!("Expected DatValue::Row variant, got {:?}", self),
         }
     }
 
@@ -318,7 +318,7 @@ impl DatValue {
     pub fn as_array(&self) -> Vec<DatValue> {
         match self {
             Self::Array(a) => a.clone(),
-            _ => panic!("DatValue is not a DatValue::Array variant"),
+            _ => panic!("Expected DatValue::Array variant, got {:?}", self),
         }
     }
 
@@ -336,7 +336,7 @@ impl DatValue {
     pub fn as_array_with<T>(&self, f: impl Fn(&Self) -> T) -> Vec<T> {
         match self {
             Self::Array(a) => a.iter().map(f).collect(),
-            _ => panic!("DatValue is not a DatValue::Array variant"),
+            _ => panic!("Expected DatValue::Array variant, got {:?}", self),
         }
     }
 }
