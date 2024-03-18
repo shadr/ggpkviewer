@@ -78,11 +78,9 @@ impl TranslationFile {
                     } else if let Some(cap) = ROW_COUNT_REGEX.captures(line) {
                         row_count = cap.name("rows").unwrap().as_str().parse().unwrap();
                         state = State::Rows;
-                    } else {
-                        if let Some(cap) = DESCRIPTION_REGEX.captures(line) {
-                            if cap.name("description").is_some() {
-                                state = State::Stats;
-                            }
+                    } else if let Some(cap) = DESCRIPTION_REGEX.captures(line) {
+                        if cap.name("description").is_some() {
+                            state = State::Stats;
                         }
                     }
                 }
@@ -123,7 +121,7 @@ pub enum StatKey {
     Multiple(Vec<String>),
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct TranslationRow {
     pub condition: String,
     pub format_string: String,
