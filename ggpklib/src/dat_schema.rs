@@ -20,6 +20,14 @@ impl SchemaFile {
         Ok(serde_json::from_str(content)?)
     }
 
+    pub fn read_from_online() -> Result<Self, anyhow::Error> {
+        let response = reqwest::blocking::get(
+            "https://github.com/poe-tool-dev/dat-schema/releases/download/latest/schema.min.json",
+        )?;
+        let text = response.text()?;
+        Self::read_from_str(&text)
+    }
+
     pub fn find_table(&self, table_name: &str) -> Option<&SchemaTable> {
         self.tables
             .iter()

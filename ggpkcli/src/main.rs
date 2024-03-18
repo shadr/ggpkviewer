@@ -142,7 +142,7 @@ fn main() -> Result<(), anyhow::Error> {
         schema = SchemaFile::read_from_file(args.schema_path.unwrap())?;
         PoeFS::new(LocalSource::new(path)?)
     } else if args.online {
-        todo!();
+        schema = SchemaFile::read_from_online()?;
         PoeFS::new(OnlineSource::new(None))
     } else {
         unreachable!()
