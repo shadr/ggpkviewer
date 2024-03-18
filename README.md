@@ -38,16 +38,13 @@ let file_schema = schema.find_table("mods").unwrap();
 // Get column definitions
 let file_columns = &file_schema.columns;
 
-for i in 0..file_dat.row_count() as usize {
-    let mut row = file_dat.nth_row(i);
-    // Values will contain Vec<DatValue> where DatValue is enum of possible types
-    // values[nth] corresponds to file_columns[nth] column definition
-    let values = row.read_with_schema(file_columns);
-    // ... do something with values
+for row in file_dat.iter_rows_map(&file_columns){
+    // `row` is HashMap<String, DatValue>
+    println!("{}", row["Id"].as_string()) // casting DatValue to String using `as_string`
 }
 ```
 # CLI
-You can use supported commands:
+You can see supported commands by using:
 ```sh
 ggpkcli --help
 ```
