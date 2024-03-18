@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use ggpklib::dat::DatFile;
+use ggpklib::dat::{DatFile, DatValue};
 use ggpklib::dat_schema::SchemaFile;
 use ggpklib::poefs::{local::LocalSource, online::OnlineSource, PoeFS};
 
@@ -25,6 +25,28 @@ pub enum Command {
         output: PathBuf,
     },
     ListPaths,
+}
+
+fn datvalue_to_csv_cell(value: DatValue) -> String {
+    match value {
+        DatValue::Bool(b) => b.to_string(),
+        DatValue::String(s) => s,
+        DatValue::I32(i) => i.to_string(),
+        DatValue::F32(f) => f.to_string(),
+        DatValue::Array(a) => {
+            let a = a
+                .into_iter()
+                .map(|v| datvalue_to_csv_cell(v))
+                .collect::<Vec<_>>();
+            let joined = a.join(";");
+            format!("[{joined}]")
+        }
+        DatValue::Row(r) => format!("{r:?}"),
+        DatValue::ForeignRow { rid, .. } => {
+            format!("{rid:?}")
+        }
+        DatValue::EnumRow(r) => r.to_string(),
+    }
 }
 
 fn save_dat_file(
@@ -54,7 +76,7 @@ fn save_dat_file(
     for i in 0..file_dat.row_count as usize {
         let mut row = file_dat.nth_row(i);
         let values = row.read_with_schema(file_columns);
-        let values = values.into_iter().map(|v| v.to_csv());
+        let values = values.into_iter().map(|v| datvalue_to_csv_cell(v));
         wtr.write_record(values)?;
     }
     wtr.flush()?;
