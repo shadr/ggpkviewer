@@ -34,10 +34,7 @@ fn datvalue_to_csv_cell(value: DatValue) -> String {
         DatValue::I32(i) => i.to_string(),
         DatValue::F32(f) => f.to_string(),
         DatValue::Array(a) => {
-            let a = a
-                .into_iter()
-                .map(|v| datvalue_to_csv_cell(v))
-                .collect::<Vec<_>>();
+            let a = a.into_iter().map(datvalue_to_csv_cell).collect::<Vec<_>>();
             let joined = a.join(";");
             format!("[{joined}]")
         }
@@ -76,7 +73,7 @@ fn save_dat_file(
     for i in 0..file_dat.row_count as usize {
         let mut row = file_dat.nth_row(i);
         let values = row.read_with_schema(file_columns);
-        let values = values.into_iter().map(|v| datvalue_to_csv_cell(v));
+        let values = values.into_iter().map(datvalue_to_csv_cell);
         wtr.write_record(values)?;
     }
     wtr.flush()?;
