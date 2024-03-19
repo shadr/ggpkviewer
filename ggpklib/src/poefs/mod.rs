@@ -128,7 +128,6 @@ impl PoeFS {
 
     /// Helper function to read a .it file and recursively extend it from parent .it file
     pub fn read_it_recursive(&mut self, path: impl AsRef<str>) -> Result<ITFile, anyhow::Error> {
-        dbg!(path.as_ref());
         let it_file = self.read_it(path)?;
         let extends = &it_file.extends;
 
