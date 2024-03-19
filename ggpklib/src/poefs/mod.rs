@@ -9,7 +9,7 @@ use std::{
 use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::{bundle::Bundle, bundle_index::BundleIndex, dat::DatFile};
+use crate::{bundle::Bundle, bundle_index::BundleIndex, dat::DatFile, it::ITFile};
 pub use local::LocalSource;
 pub use online::OnlineSource;
 
@@ -100,6 +100,46 @@ impl PoeFS {
             .ok_or(anyhow!("path not found in index bundle",))?;
         let dat_file = DatFile::new(bytes);
         Ok(dat_file)
+    }
+
+    /// Helper function to read a utf-16 with bom text file
+    pub fn read_txt(&mut self, path: impl AsRef<str>) -> Result<String, anyhow::Error> {
+        let bytes = self
+            .get_file(path.as_ref())?
+            .ok_or(anyhow!("path not found in index bundle"))?;
+        let mut bytes = bytes.as_slice();
+        if bytes[0] == 0xff && bytes[1] == 0xfe {
+            bytes = &bytes[2..];
+        }
+        let vecu16: Vec<u16> = bytes
+            .chunks_exact(2)
+            .map(|a| u16::from_le_bytes([a[0], a[1]]))
+            .collect();
+        let string = String::from_utf16_lossy(&vecu16);
+        Ok(string)
+    }
+
+    /// Helper function to read a .it file
+    pub fn read_it(&mut self, path: impl AsRef<str>) -> Result<ITFile, anyhow::Error> {
+        let txt_file = self.read_txt(path)?;
+        let it_file = ITFile::parse(txt_file);
+        Ok(it_file)
+    }
+
+    /// Helper function to read a .it file and recursively extend it from parent .it file
+    pub fn read_it_recursive(&mut self, path: impl AsRef<str>) -> Result<ITFile, anyhow::Error> {
+        dbg!(path.as_ref());
+        let it_file = self.read_it(path)?;
+        let extends = &it_file.extends;
+
+        if extends == "nothing" {
+            return Ok(it_file);
+        }
+
+        let parent_path = format!("{}.it", extends.to_lowercase());
+        let parent_it = self.read_it_recursive(&parent_path)?;
+        let it_file = it_file.merge(parent_it);
+        Ok(it_file)
     }
 }
 
