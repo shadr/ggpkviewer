@@ -9,7 +9,7 @@ use std::{
 use anyhow::anyhow;
 use byteorder::{LittleEndian, ReadBytesExt};
 
-use crate::{bundle::Bundle, bundle_index::BundleIndex};
+use crate::{bundle::Bundle, bundle_index::BundleIndex, dat::DatFile};
 pub use local::LocalSource;
 pub use online::OnlineSource;
 
@@ -91,6 +91,15 @@ impl PoeFS {
 
     pub fn get_paths(&self) -> impl Iterator<Item = &String> {
         self.paths.keys()
+    }
+
+    /// Helper function to read a .dat file
+    pub fn read_dat(&mut self, path: impl AsRef<str>) -> Result<DatFile, anyhow::Error> {
+        let bytes = self
+            .get_file(path.as_ref())?
+            .ok_or(anyhow!("path not found in index bundle",))?;
+        let dat_file = DatFile::new(bytes);
+        Ok(dat_file)
     }
 }
 
