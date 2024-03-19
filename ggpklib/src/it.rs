@@ -24,7 +24,7 @@ static KEY_VALUE_REGEX: Lazy<Regex> = Lazy::new(|| {
         .unwrap()
 });
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ITFile {
     pub version: u8,
     pub aabstract: bool,

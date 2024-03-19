@@ -22,6 +22,11 @@ pub struct PoeFS {
     bundle_index: BundleIndex,
     paths: HashMap<String, u64>,
     file_map: HashMap<u64, usize>,
+
+    dat_cache: HashMap<String, DatFile>,
+    txt_cache: HashMap<String, String>,
+    it_cache: HashMap<String, ITFile>,
+    it_recursive_cache: HashMap<String, ITFile>,
 }
 
 impl PoeFS {
@@ -54,6 +59,10 @@ impl PoeFS {
             bundle_index,
             paths,
             file_map,
+            dat_cache: HashMap::new(),
+            txt_cache: HashMap::new(),
+            it_cache: HashMap::new(),
+            it_recursive_cache: HashMap::new(),
         }
     }
 
@@ -94,16 +103,34 @@ impl PoeFS {
     }
 
     /// Helper function to read a .dat file
-    pub fn read_dat(&mut self, path: impl AsRef<str>) -> Result<DatFile, anyhow::Error> {
+    pub fn read_dat(&mut self, path: impl AsRef<str>) -> Result<&DatFile, anyhow::Error> {
+        if self.dat_cache.contains_key(path.as_ref()) {
+            return Ok(self.dat_cache.get(path.as_ref()).unwrap());
+        }
         let bytes = self
             .get_file(path.as_ref())?
             .ok_or(anyhow!("path not found in index bundle",))?;
         let dat_file = DatFile::new(bytes);
-        Ok(dat_file)
+
+        self.dat_cache.insert(path.as_ref().to_owned(), dat_file);
+
+        Ok(self.dat_cache.get(path.as_ref()).unwrap())
     }
 
     /// Helper function to read a utf-16 with bom text file
     pub fn read_txt(&mut self, path: impl AsRef<str>) -> Result<String, anyhow::Error> {
+        self.read_txt_cache(path, true)
+    }
+
+    fn read_txt_cache(
+        &mut self,
+        path: impl AsRef<str>,
+        add_to_cache: bool,
+    ) -> Result<String, anyhow::Error> {
+        if let Some(cached) = self.txt_cache.get(path.as_ref()) {
+            return Ok(cached.clone());
+        }
+
         let bytes = self
             .get_file(path.as_ref())?
             .ok_or(anyhow!("path not found in index bundle"))?;
@@ -116,29 +143,47 @@ impl PoeFS {
             .map(|a| u16::from_le_bytes([a[0], a[1]]))
             .collect();
         let string = String::from_utf16_lossy(&vecu16);
-        Ok(string)
+        if add_to_cache {
+            self.txt_cache.insert(path.as_ref().to_owned(), string);
+            Ok(self.txt_cache.get(path.as_ref()).unwrap().clone())
+        } else {
+            Ok(string)
+        }
     }
 
     /// Helper function to read a .it file
-    pub fn read_it(&mut self, path: impl AsRef<str>) -> Result<ITFile, anyhow::Error> {
-        let txt_file = self.read_txt(path)?;
+    pub fn read_it(&mut self, path: impl AsRef<str>) -> Result<&ITFile, anyhow::Error> {
+        if self.it_cache.contains_key(path.as_ref()) {
+            return Ok(self.it_cache.get(path.as_ref()).unwrap());
+        }
+        let txt_file = self.read_txt_cache(path.as_ref(), false)?;
         let it_file = ITFile::parse(txt_file);
-        Ok(it_file)
+        self.it_cache.insert(path.as_ref().to_string(), it_file);
+        Ok(&self.it_cache[path.as_ref()])
     }
 
     /// Helper function to read a .it file and recursively extend it from parent .it file
-    pub fn read_it_recursive(&mut self, path: impl AsRef<str>) -> Result<ITFile, anyhow::Error> {
-        let it_file = self.read_it(path)?;
-        let extends = &it_file.extends;
+    pub fn read_it_recursive(&mut self, path: impl AsRef<str>) -> Result<&ITFile, anyhow::Error> {
+        if self.it_recursive_cache.contains_key(path.as_ref()) {
+            return Ok(self.it_recursive_cache.get(path.as_ref()).unwrap());
+        }
+        let it_file = self.read_it(path.as_ref())?;
 
-        if extends == "nothing" {
-            return Ok(it_file);
+        if it_file.extends == "nothing" {
+            return self.read_it(path.as_ref());
+        } else {
         }
 
-        let parent_path = format!("{}.it", extends.to_lowercase());
+        let it_file = it_file.clone();
+        let parent_path = format!("{}.it", it_file.extends.to_lowercase());
         let parent_it = self.read_it_recursive(&parent_path)?;
-        let it_file = it_file.merge(parent_it);
-        Ok(it_file)
+        let it_file = it_file.merge(parent_it.clone());
+
+        self.it_recursive_cache
+            .insert(path.as_ref().to_string(), it_file);
+
+        let cached = self.it_recursive_cache.get(path.as_ref()).unwrap();
+        Ok(cached)
     }
 }
 
