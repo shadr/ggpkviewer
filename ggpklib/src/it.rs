@@ -86,9 +86,9 @@ impl ITFile {
             };
             for (key, value) in section_map {
                 if let Some(existing_value) = self_section.get_mut(&key) {
-                    match existing_value {
-                        ITValue::Set(set) => {
-                            set.insert(value);
+                    match (existing_value, value) {
+                        (ITValue::Set(self_set), ITValue::Set(other_set)) => {
+                            self_set.extend(other_set);
                         }
                         _ => (),
                     }
