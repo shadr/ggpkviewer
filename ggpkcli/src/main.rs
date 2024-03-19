@@ -60,6 +60,7 @@ fn datvalue_to_csv_cell(value: DatValue) -> String {
             format!("{rid:?}")
         }
         DatValue::EnumRow(r) => r.to_string(),
+        DatValue::UnknownArray(_, _) => "?".to_string(),
     }
 }
 

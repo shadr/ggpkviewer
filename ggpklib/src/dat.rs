@@ -161,7 +161,7 @@ impl<'a> DatRow<'a> {
             ColumnType::String => read_string,
             ColumnType::I32 => read_i32,
             ColumnType::F32 => todo!(),
-            ColumnType::Array => todo!(),
+            ColumnType::Array => read_unknown_array,
             ColumnType::Row => read_key,
             ColumnType::ForeignRow => read_foreign_key,
             ColumnType::EnumRow => read_enum_row,
@@ -221,6 +221,12 @@ fn read_key(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
     DatValue::Row(row)
 }
 
+fn read_unknown_array(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
+    let array_length = fixed_reader.read_u64::<LittleEndian>().unwrap();
+    let variable_offset = fixed_reader.read_u64::<LittleEndian>().unwrap();
+    DatValue::UnknownArray(variable_offset, array_length)
+}
+
 const fn wrap_usize(value: usize) -> Option<usize> {
     if value == 0xfefefefefefefefe {
         None
@@ -235,6 +241,7 @@ pub enum DatValue {
     String(String),
     I32(i32),
     F32(f32),
+    UnknownArray(u64, u64),
     Array(Vec<DatValue>),
     Row(Option<usize>),
     ForeignRow {
