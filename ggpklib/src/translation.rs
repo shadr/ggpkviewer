@@ -56,7 +56,7 @@ impl TranslationFile {
                 State::Stats => {
                     let stats = STATS_REGEX.captures(line).unwrap();
                     let stats_ids_str = stats.name("stat_ids").unwrap().as_str().trim();
-                    if stats_ids_str.chars().filter(|c| *c == ' ').count() == 1 {
+                    if stats_ids_str.split(' ').count() == 1 {
                         stats_ids = StatKey::Single(stats_ids_str);
                     } else {
                         stats_ids = StatKey::Multiple(stats_ids_str.split(' ').collect());
