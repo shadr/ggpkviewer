@@ -54,12 +54,20 @@ impl ITFile {
                     .as_str()
                     .trim_matches('"')
                     .to_string();
-                let value = if section_key == "Base" && key == "tag" {
-                    ITValue::new_list(value)
+                if section_key == "Base" && key == "tag" {
+                    let entry = section_map
+                        .entry(key)
+                        .or_insert_with(|| ITValue::Set(BTreeSet::new()));
+                    match entry {
+                        ITValue::Set(set) => {
+                            set.insert(ITValue::new(value));
+                        }
+                        _ => unreachable!(),
+                    }
                 } else {
-                    ITValue::new(value)
-                };
-                section_map.insert(key, value);
+                    let value = ITValue::new(value);
+                    section_map.insert(key, value);
+                }
             }
 
             sections.insert(section_key, section_map);
