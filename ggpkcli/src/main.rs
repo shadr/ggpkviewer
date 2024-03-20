@@ -111,6 +111,16 @@ fn save_txt_file(
     Ok(())
 }
 
+fn save_it_file(
+    poefs: &mut PoeFS,
+    path: impl AsRef<Path>,
+    output: impl AsRef<Path>,
+) -> Result<(), anyhow::Error> {
+    let it = poefs.read_it_recursive(path.as_ref().to_str().unwrap())?;
+    std::fs::write(output, serde_json::to_string(&it)?)?;
+    Ok(())
+}
+
 fn get_file(
     fs: &mut PoeFS,
     path: PathBuf,
@@ -126,6 +136,9 @@ fn get_file(
         }
         "txt" => {
             save_txt_file(file_bytes, path, output)?;
+        }
+        "it" => {
+            save_it_file(fs, path, output)?;
         }
         _ => unimplemented!(
             "Reading files with extension: '{}' not supported yet",

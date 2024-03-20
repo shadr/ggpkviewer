@@ -24,7 +24,7 @@ static KEY_VALUE_REGEX: Lazy<Regex> = Lazy::new(|| {
         .unwrap()
 });
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct ITFile {
     pub version: u8,
     pub aabstract: bool,
@@ -106,7 +106,7 @@ impl ITFile {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, serde::Serialize)]
 pub enum ITValue {
     Number(i32),
     Set(BTreeSet<ITValue>),
