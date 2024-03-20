@@ -171,7 +171,6 @@ impl PoeFS {
 
         if it_file.extends == "nothing" {
             return self.read_it(path.as_ref());
-        } else {
         }
 
         let it_file = it_file.clone();
