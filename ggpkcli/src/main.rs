@@ -1,5 +1,7 @@
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
+use ddsfile::Dds;
 use ggpklib::dat::{DatFile, DatValue};
 use ggpklib::dat_schema::SchemaFile;
 use ggpklib::poefs::{LocalSource, OnlineSource, PoeFS};
@@ -111,6 +113,19 @@ fn save_txt_file(
     Ok(())
 }
 
+fn save_dds_file(
+    bytes: Vec<u8>,
+    _path: impl AsRef<Path>,
+    output: impl AsRef<Path>,
+) -> Result<(), anyhow::Error> {
+    let c = Cursor::new(bytes);
+    let dds = Dds::read(c)?;
+    let image = image_dds::image_from_dds(&dds, 0)?;
+    image.save(output)?;
+
+    Ok(())
+}
+
 fn save_it_file(
     poefs: &mut PoeFS,
     path: impl AsRef<Path>,
@@ -139,6 +154,9 @@ fn get_file(
         }
         "it" => {
             save_it_file(fs, path, output)?;
+        }
+        "dds" => {
+            save_dds_file(file_bytes, path, output)?;
         }
         _ => unimplemented!(
             "Reading files with extension: '{}' not supported yet",
