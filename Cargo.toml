@@ -1,3 +1,6 @@
 [workspace]
 resolver = "2"
 members = ["ggpklib", "ggpkcli"]
+
+[profile.release]
+opt-level = 2

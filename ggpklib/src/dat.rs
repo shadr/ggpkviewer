@@ -138,28 +138,27 @@ impl<'a> DatRow<'a> {
     /// Parse a row using provided column definitions and return a HashMap where keys are column names
     pub fn read_to_map(&mut self, columns: &[TableColumn]) -> HashMap<String, DatValue> {
         let mut unknown_column_count = 0;
-        let mut values = HashMap::new();
-        for column in columns {
-            let value = if column.array {
-                self.read_array(column)
-            } else {
-                self.read_scalar(column)
-            };
+        let values = self.read_with_schema(columns);
+        let mut map = HashMap::new();
+        for (value, column) in values.into_iter().zip(columns.iter()) {
             let column_name = column.name.clone().unwrap_or_else(|| {
                 let s = format!("Unknown{unknown_column_count}");
                 unknown_column_count += 1;
                 s
             });
-            values.insert(column_name, value);
+            map.insert(column_name, value);
         }
-        values
+        map
     }
 
     fn get_fn(column: &TableColumn) -> ReadFn {
         match column.ttype {
             ColumnType::Bool => read_bool,
             ColumnType::String => read_string,
+            ColumnType::I16 => read_i16,
             ColumnType::I32 => read_i32,
+            ColumnType::U16 => read_u16,
+            ColumnType::U32 => read_u32,
             ColumnType::F32 => todo!(),
             ColumnType::Array => read_unknown_array,
             ColumnType::Row => read_key,
@@ -198,6 +197,21 @@ fn read_string(fixed_reader: &mut Cursor<&[u8]>, variable_data: &[u8]) -> DatVal
 fn read_i32(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
     let value = fixed_reader.read_i32::<LittleEndian>().unwrap();
     DatValue::I32(value)
+}
+
+fn read_u32(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
+    let value = fixed_reader.read_u32::<LittleEndian>().unwrap();
+    DatValue::U32(value)
+}
+
+fn read_i16(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
+    let value = fixed_reader.read_i16::<LittleEndian>().unwrap();
+    DatValue::I16(value)
+}
+
+fn read_u16(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
+    let value = fixed_reader.read_u16::<LittleEndian>().unwrap();
+    DatValue::U16(value)
 }
 
 fn read_foreign_key(fixed_reader: &mut Cursor<&[u8]>, _: &[u8]) -> DatValue {
@@ -239,7 +253,10 @@ const fn wrap_usize(value: usize) -> Option<usize> {
 pub enum DatValue {
     Bool(bool),
     String(String),
+    I16(i16),
     I32(i32),
+    U16(u16),
+    U32(u32),
     F32(f32),
     UnknownArray(u64, u64),
     Array(Vec<DatValue>),

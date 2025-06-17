@@ -50,7 +50,10 @@ fn datvalue_to_csv_cell(value: DatValue) -> String {
     match value {
         DatValue::Bool(b) => b.to_string(),
         DatValue::String(s) => s,
+        DatValue::I16(i) => i.to_string(),
         DatValue::I32(i) => i.to_string(),
+        DatValue::U16(i) => i.to_string(),
+        DatValue::U32(i) => i.to_string(),
         DatValue::F32(f) => f.to_string(),
         DatValue::Array(a) => {
             let a = a.into_iter().map(datvalue_to_csv_cell).collect::<Vec<_>>();

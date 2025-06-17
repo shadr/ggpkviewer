@@ -62,7 +62,10 @@ pub struct TableColumn {
 pub enum ColumnType {
     Bool,
     String,
+    I16,
     I32,
+    U16,
+    U32,
     F32,
     Array,
     Row,
